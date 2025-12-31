@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>🌋 Volcano 漢字チャレンジ（小1）🌋</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family:"Hiragino Maru Gothic ProN","Arial Rounded MT Bold",Arial,sans-serif;
+  background:linear-gradient(#cce7ff,#fff);
+  text-align:center;
+  padding:20px;
+}
+h1{font-size:2.2em;color:#ff5722}
+#stats{font-size:1.2em;margin:6px}
+#question{font-size:3.6em;margin:18px 0}
+
+.okuri{
+  font-size:0.45em;
+  color:#777;
+  margin-left:6px;
+}
+
+.choices{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(120px,1fr));
+  gap:18px;
+  max-width:420px;
+  margin:0 auto;
+}
+.choice{
+  font-size:2em;
+  padding:18px;
+  border-radius:20px;
+  border:none;
+  background:#fff;
+  box-shadow:0 4px 0 #ccc;
+}
+.choice:active{
+  transform:translateY(4px);
+  box-shadow:none;
+}
+
+#message{font-size:1.6em;height:1.6em;margin-top:10px}
+
+#progressBox{max-width:420px;margin:14px auto}
+.progress-bg-big{
+  width:100%;height:28px;
+  background:#eee;border-radius:18px;overflow:hidden;
+}
+.progress-bar-big{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,#ffeb3b,#ff9800,#ff5722);
+  transition:width .4s ease;
+}
+
+#stickerGrid{
+  display:grid;
+  grid-template-columns:repeat(3,160px);
+  gap:16px;
+  justify-content:center;
+  margin-top:20px;
+}
+.sticker{
+  width:160px;height:160px;
+  background:#fff8e1;
+  border-radius:24px;
+  border:4px solid #ff9800;
+  display:flex;align-items:center;justify-content:center;
+}
+.sticker img{width:150px;cursor:pointer}
+
+#zoom{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.85);
+  display:none;align-items:center;justify-content:center;
+}
+#zoom img{width:90vw;max-width:520px}
+
+button{
+  margin-top:16px;
+  font-size:1em;
+  padding:6px 16px;
+  border-radius:12px;
+  border:none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🌋 Volcano 漢字チャレンジ 🌋</h1>
+
+<div id="stats">Score: <b id="score">0</b> pt</div>
+
+<div id="progressBox">
+  <div class="progress-bg-big">
+    <div class="progress-bar-big" id="progressBar"></div>
+  </div>
+  <div id="progressText">0 / 20 pt</div>
+</div>
+
+<div id="question">?</div>
+<div class="choices" id="choices"></div>
+<div id="message"></div>
+
+<h2>🏆 My Volcano Stickers</h2>
+<div id="stickerGrid"></div>
+
+<button onclick="resetGame()">Reset</button>
+
+<div id="zoom" onclick="this.style.display='none'"><img></div>
+
+<audio id="soundCorrect" src="Correct.m4a"></audio>
+<audio id="soundIncorrect" src="Incorrect.m4a"></audio>
+
+<script>
+const SAVE_KEY="soma_volcano_kanji_g1";
+
+/* === 小1 漢字80字（完全準拠） === */
+const kanjiList = [
+  {kanji:"一",yomi:"いち"},{kanji:"二",yomi:"に"},{kanji:"三",yomi:"さん"},
+  {kanji:"四",yomi:"よん"},{kanji:"五",yomi:"ご"},{kanji:"六",yomi:"ろく"},
+  {kanji:"七",yomi:"なな"},{kanji:"八",yomi:"はち"},{kanji:"九",yomi:"きゅう"},
+  {kanji:"十",yomi:"じゅう"},{kanji:"百",yomi:"ひゃく"},{kanji:"千",yomi:"せん"},
+
+  {kanji:"上",yomi:"うえ"},{kanji:"下",yomi:"した"},
+  {kanji:"左",yomi:"ひだり"},{kanji:"右",yomi:"みぎ"},
+  {kanji:"中",yomi:"なか"},{kanji:"大",yomi:"おお"},
+  {kanji:"小",yomi:"ちい"},
+
+  {kanji:"月",yomi:"つき"},{kanji:"日",yomi:"ひ"},
+  {kanji:"年",yomi:"とし"},{kanji:"早",yomi:"はや"},
+  {kanji:"木",yomi:"き"},{kanji:"林",yomi:"はやし"},
+  {kanji:"山",yomi:"やま"},{kanji:"川",yomi:"かわ"},
+  {kanji:"土",yomi:"つち"},{kanji:"空",yomi:"そら"},
+  {kanji:"天",yomi:"てん"},
+  {kanji:"生",yomi:"い",okuri:"いきる"},
+  {kanji:"花",yomi:"はな"},{kanji:"草",yomi:"くさ"},
+  {kanji:"虫",yomi:"むし"},{kanji:"犬",yomi:"いぬ"},
+
+  {kanji:"人",yomi:"ひと"},{kanji:"名",yomi:"な"},
+  {kanji:"女",yomi:"おんな"},{kanji:"男",yomi:"おとこ"},
+  {kanji:"子",yomi:"こ"},{kanji:"目",yomi:"め"},
+  {kanji:"耳",yomi:"みみ"},{kanji:"口",yomi:"くち"},
+  {kanji:"手",yomi:"て"},{kanji:"足",yomi:"あし"},
+  {kanji:"力",yomi:"ちから"},
+
+  {kanji:"雨",yomi:"あめ"},{kanji:"石",yomi:"いし"},
+  {kanji:"竹",yomi:"たけ"},{kanji:"糸",yomi:"いと"},
+  {kanji:"貝",yomi:"かい"},{kanji:"車",yomi:"くるま"},
+  {kanji:"金",yomi:"かね"},{kanji:"王",yomi:"おう"},
+  {kanji:"玉",yomi:"たま"},
+
+  {kanji:"学",yomi:"がく"},{kanji:"校",yomi:"こう"},
+  {kanji:"文",yomi:"ぶん"},{kanji:"字",yomi:"じ"},
+  {kanji:"田",yomi:"た"},{kanji:"水",yomi:"みず"},
+  {kanji:"火",yomi:"ひ"},
+  {kanji:"入",yomi:"はい",okuri:"はいる"},
+  {kanji:"出",yomi:"で",okuri:"でる"},
+  {kanji:"立",yomi:"た",okuri:"たつ"},
+  {kanji:"見",yomi:"み",okuri:"みる"},
+  {kanji:"休",yomi:"やす",okuri:"やすむ"},
+  {kanji:"先",yomi:"さき"}
+];
+
+let score=0,current,mode;
+let remainingStamps=[...Array(50)].map((_,i)=>`volst (${i+1}).png`);
+remainingStamps.sort(()=>Math.random()-0.5);
+let earnedStamps=[];
+
+/* 送り仮名の「ひらがな部分だけ」取得 */
+function getOkuriKana(){
+  if(!current.okuri) return "";
+  return current.okuri.replace(current.yomi,"");
+}
+
+/* Save / Load */
+function saveGame(){
+  localStorage.setItem(SAVE_KEY,JSON.stringify({score,remainingStamps,earnedStamps}));
+}
+function loadGame(){
+  const d=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}");
+  score=d.score||0;
+  remainingStamps=d.remainingStamps||remainingStamps;
+  earnedStamps=d.earnedStamps||[];
+  earnedStamps.forEach(addSticker);
+}
+
+/* Game */
+function newQuestion(){
+  current=kanjiList[Math.floor(Math.random()*kanjiList.length)];
+  mode=Math.random()<0.5?"A":"B";
+
+  if(mode==="A"){
+    const okuriKana=getOkuriKana();
+    question.innerHTML = okuriKana
+      ? `${current.kanji}<span class="okuri">（${okuriKana}）</span>`
+      : current.kanji;
+  }else{
+    question.textContent = current.okuri || current.yomi;
+  }
+  generateChoices();
+}
+
+function generateChoices(){
+  const answer = mode==="A"?current.yomi:current.kanji;
+  const set=new Set([answer]);
+  while(set.size<6){
+    const r=kanjiList[Math.floor(Math.random()*kanjiList.length)];
+    set.add(mode==="A"?r.yomi:r.kanji);
+  }
+  choices.innerHTML="";
+  [...set].sort(()=>Math.random()-0.5).forEach(v=>{
+    const b=document.createElement("button");
+    b.className="choice";
+    b.textContent=v;
+    b.onclick=()=>check(v);
+    choices.appendChild(b);
+  });
+}
+
+function check(v){
+  const ok = mode==="A"?v===current.yomi:v===current.kanji;
+  if(ok){
+    score+=2;
+    soundCorrect.play();
+    message.textContent="🔥 せいかい！";
+  }else{
+    score=Math.max(0,score-1);
+    soundIncorrect.play();
+    message.textContent="🙂 もういちど！";
+  }
+  scoreEl.textContent=score;
+  updateProgress();
+  while(score>=(earnedStamps.length+1)*20) giveSticker();
+  saveGame();
+  setTimeout(newQuestion,600);
+}
+
+/* Progress / Sticker */
+function updateProgress(){
+  const e=score%20;
+  progressBar.style.width=(e/20*100)+"%";
+  progressText.textContent=`${e} / 20 pt`;
+}
+function giveSticker(){
+  if(!remainingStamps.length) return;
+  const s=remainingStamps.shift();
+  earnedStamps.push(s);
+  addSticker(s);
+}
+function addSticker(src){
+  const d=document.createElement("div");
+  d.className="sticker";
+  const i=document.createElement("img");
+  i.src=src;
+  i.onclick=()=>{zoom.style.display="flex";zoom.querySelector("img").src=src};
+  d.appendChild(i);
+  stickerGrid.appendChild(d);
+}
+function resetGame(){
+  if(confirm("Reset?")){
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+  }
+}
+
+/* Init */
+loadGame();
+const scoreEl=document.getElementById("score");
+scoreEl.textContent=score;
+updateProgress();
+newQuestion();
+</script>
+
+</body>
+</html>
